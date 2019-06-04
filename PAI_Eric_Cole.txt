@@ -1,0 +1,477 @@
+char[][] myGrid = new char[6][7];
+    char[][] tmpGrid = new char[6][7];
+    ArrayList<Integer> clearColumns = new ArrayList<Integer>();
+    ArrayList<Integer> winPlays = new ArrayList<Integer>();
+    ArrayList<Integer> loosePlays = new ArrayList<Integer>();
+    HashMap<String,int[]> brain = new HashMap<String,int[]>();
+    ArrayList<String> memoryHash = new ArrayList<String>();
+    ArrayList<Integer> memoryPos = new ArrayList<Integer>();
+    char myColor = 'b';
+    String loadFile = "brain-v3.txt";
+    String saveFile = "brain-v3.txt";
+    long count = 0;
+    boolean win = false;
+    int maxAiValue = 1000;
+    int minAiValue = 0;
+    int saveFrequency = 100;
+    int winWeight = 1;
+    int looseWeight = -1;
+    boolean fileLoaded = false;
+    int pieces = 0;
+    int[] pieceHistory = {-1,-1,-1};
+    int plays = 0;
+    int ties = 0;
+    
+    public void playerBlackStrategy(){//qwerty
+        if(!fileLoaded)
+        {
+            try
+            {
+                brainIn(loadFile);
+            }catch(Exception e){}
+            fileLoaded = true;
+        }
+        //leave these top 4 lines at the top
+        playerBlack = "Eric-Cole";  //put player1 name here
+        showText(playerBlack,70,100); //shows your name
+        GreenfootImage image1 = new GreenfootImage("black.png"); //sets image to black checker
+        String colorInitial = new String("b"); //fills the 2d array grid with this value
+        
+        myColor = colorInitial.charAt(0);
+        pieces = 0;
+        resetMyGrid();
+        pieceHistory[2] = pieceHistory[1];
+        pieceHistory[1] = pieceHistory[0];
+        pieceHistory[0] = pieces;
+        gridToTmpGrid();
+        checkFullColumns();
+        //checkWin();
+        //checkLoss();
+        if(!win && blankBoard())
+        {
+            if(tieCounter > ties)
+            {
+                toBrain(0);
+            }
+            else
+            {
+                toBrain(looseWeight);
+            }
+        }
+        else
+        {
+            win = false;
+        }
+        if(pieceHistory[0] <= pieceHistory[1] || pieceHistory[0] <= pieceHistory[2])
+        {
+            placeCol(0,colorInitial,image1);
+            return;
+        }
+        if(blankBoard())
+        {
+            count ++;
+            if(count%saveFrequency==0)
+            {
+                System.out.println("Saving brain: " + saveFile + ": " + (count/saveFrequency));
+                try
+                {
+                    brainOut(saveFile);
+                    //brainIn(saveFile);
+                }catch(Exception e){}
+            }
+        }
+        
+        int colToPlace = 1;
+        /*if(winPlays.size() > 0){
+            colToPlace = winPlays.get(0);
+        }else if(loosePlays.size() > 0){
+            colToPlace = loosePlays.get(0);
+        }else{
+            colToPlace = ((int)(Math.random()*7));
+            colToPlace = clearColumns.get(((int)(Math.random()*clearColumns.size())));
+        }*/
+        plays++;
+        colToPlace = ai();
+        
+        placeCol(colToPlace,colorInitial,image1);  //plays in the specified col and fills the 2D array with the 2nd parameter String
+    }
+    public void resetMyGrid()
+    {
+        for(int r=0; r<6; r++)
+        {
+            for(int c=0; c<7; c++)
+            {
+                if(grid[r][c] == null)
+                {
+                    myGrid[r][c] = '~';
+                }
+                else if(grid[r][c].charAt(0)==myColor)
+                {
+                    myGrid[r][c] = 'b';
+                    pieces++;
+                }
+                else
+                {
+                    myGrid[r][c] = 'r';
+                    pieces++;
+                }
+            }
+        }
+    }
+    public void gridToTmpGrid()
+    {
+        for(int r=0; r<6; r++)
+        {
+            for(int c=0; c<7; c++)
+            {
+                tmpGrid[r][c] = myGrid[r][c];
+            }
+        }
+    }
+    public void checkFullColumns()
+    {
+        clearColumns.clear();
+        for(int i=0; i<7; i++)
+        {
+            if(myGrid[0][i] == '~')
+            {
+                clearColumns.add(i);
+            }
+        }
+    }
+    public void checkWin()
+    {
+        winPlays.clear();
+        for(int i=0; i<7; i++)
+        {
+            gridToTmpGrid();
+            if(clearColumns.contains(i))
+            {
+                simulatePlacement(i,'b');
+                if(checkWinner() == 'b')
+                {
+                    winPlays.add(i);
+                }
+            }
+        }
+    }
+    public void checkLoss()
+    {
+        loosePlays.clear();
+        for(int i=0; i<7; i++)
+        {
+            gridToTmpGrid();
+            if(clearColumns.contains(i))
+            {
+                simulatePlacement(i,'r');
+                if(checkWinner() == 'r')
+                {
+                    loosePlays.add(i);
+                }
+            }
+        }
+    }
+    public void simulatePlacement(int column, char color)
+    {
+        for(int r=5; r>=0; r--)
+        {
+            if(tmpGrid[r][column] == '~')
+            {
+                tmpGrid[r][column] = color;
+                return;
+            }
+        }
+    }
+    public char checkWinner()
+    {
+        String checker = new String();
+        //Check each row for a winner, starting at bottom
+        for(int r=tmpGrid.length-1; r>=0; r--)
+        {
+            checker = "";
+            for(int c=0; c<tmpGrid[0].length; c++)
+            {
+                checker += Character.toString(tmpGrid[r][c]);
+                if(checker.contains("bbbb"))
+                {
+                    return 'b';
+                }
+                else if(checker.contains("rrrr"))
+                {
+                    return 'r';
+                }
+            }
+        }
+        //Check each column for a winner
+        for(int c=0; c<tmpGrid[0].length; c++)
+        {
+            checker = "";
+            for(int r=tmpGrid.length-1; r>=0; r--)
+            {
+                checker += Character.toString(tmpGrid[r][c]);
+                if(checker.contains("bbbb"))
+                {
+                    return 'b';
+                }
+                else if(checker.contains("rrrr"))
+                {
+                    return 'r';
+                }
+            }
+        }
+        //Checks for diagonal winner
+        //This checks for diagonal winner starting at bottom right, moving to top left
+        String[] diag = {new String(),new String(),new String(),new String(),new String(),new String()};
+        for(int r=0; r<tmpGrid.length; r++)
+        {
+            for(int c=0; c<tmpGrid[0].length; c++)
+            {
+                for(int i=2; i>=-3; i--)
+                {
+                    if(r-c==i)
+                    {
+                        diag[i+3] += tmpGrid[r][c];
+                    }
+                }
+                for(int i=5; i>=0; i--)
+                {
+                    if(diag[i].contains("bbbb"))
+                    {
+                        return 'b';
+                    }
+                    else if(diag[i].contains("rrrr"))
+                    {
+                        return 'r';
+                    }
+                }
+            }
+        }
+        //Reset diagnal String[] so we can now check for diagonal wins
+        //starting at bottom left moving to top right
+        for(int i=0; i<6; i++)
+        {
+            diag[i] = "";
+        }
+        for(int r=0; r<tmpGrid.length; r++)
+        {
+            for(int c=0; c<tmpGrid[0].length; c++)
+            {
+                for(int i=3; i<9; i++)
+                {
+                    if(r+c==i)
+                    {
+                        diag[i-3] += tmpGrid[r][c];
+                    }
+                }
+                for(int i=0; i<6; i++)
+                {
+                    if(diag[i].contains("bbbb"))
+                    {
+                        return 'b';
+                    }
+                    else if(diag[i].contains("rrrr"))
+                    {
+                        return 'r';
+                    }
+                }
+            }
+        }
+        return '~';
+    }
+    public void brainIn(String fileName) throws Exception
+    {
+        File file = new File(fileName);
+        BufferedReader br = new BufferedReader(new FileReader(file));
+        
+        String ln = br.readLine();
+        while(ln != null)
+        {
+            String[] tmp = ln.split(";");
+            String hash = tmp[0];
+            int[] tmpArr = new int[7];
+            for(int i=0; i<7; i++)
+            {
+                tmpArr[i] = Integer.parseInt(tmp[i+1]);
+            }
+            brain.put(hash,tmpArr);
+            ln = br.readLine();
+        }
+        br.close();
+    }
+    public void brainOut(String fileName) throws Exception
+    {
+        File file = new File(fileName);
+        BufferedWriter bw = new BufferedWriter(new FileWriter(file));
+        HashMap<String,int[]> tmpHashMap = new HashMap<String,int[]>();
+        
+        Iterator it = brain.entrySet().iterator();
+        while(it.hasNext())
+        {
+            Map.Entry pair = (Map.Entry)it.next();
+            tmpHashMap.put((String)pair.getKey(),(int[])pair.getValue());
+            String tmp = pair.getKey() + ";";
+            int[] tmpArr = (int[])pair.getValue();
+            for(int i=0; i<7; i++)
+            {
+                tmp += tmpArr[i] + ";";
+            }
+            tmp += "\n";
+            bw.write(tmp);
+            it.remove();
+        }
+        bw.close();
+        brain = tmpHashMap;
+    }
+    public int ai()
+    {
+        String hash = getHash();
+        if(brain.get(hash) == null)
+        {
+            checkWin();
+            checkLoss();
+            int[] tmp = new int[7];
+            if(winPlays.size() > 0)
+            {
+                for(int i=0; i<7; i++)
+                {
+                    if(winPlays.contains(i))
+                    {
+                        tmp[i] = maxAiValue;
+                    }
+                    else
+                    {
+                        tmp[i] = minAiValue;
+                    }
+                }
+            }
+            else if(loosePlays.size() > 0)
+            {
+                for(int i=0; i<7; i++)
+                {
+                    if(loosePlays.contains(i))
+                    {
+                        tmp[i] = maxAiValue;
+                    }
+                    else
+                    {
+                        tmp[i] = minAiValue;
+                    }
+                }
+            }
+            else
+            {
+                for(int i=0; i<7; i++)
+                {
+                    if(clearColumns.contains(i))
+                    {
+                        tmp[i] = maxAiValue/2;
+                    }
+                    else
+                    {
+                        tmp[i] = minAiValue;
+                    }
+                }
+            }
+            brain.put(hash,tmp);
+        }
+        int[] tmp = brain.get(hash);
+        int[] tmp2 = new int[7];
+        int total = 0;
+        for(int i=0; i<7; i++)
+        {
+            total += tmp[i];
+            tmp2[i] = total;
+        }
+        int ran = random(0,total);
+        int play = -1;
+        for(int i=0; i<7; i++)
+        {
+            if(ran <= tmp2[i])
+            {
+                if(play == -1)
+                {
+                    play = i;
+                }
+            }
+        }
+        memoryHash.add(hash);
+        memoryPos.add(play);
+        gridToTmpGrid();
+        simulatePlacement(play, 'b');
+        if(checkWinner() == 'b')
+        {
+            win = true;
+            toBrain(winWeight);
+        }
+        return play;
+    }
+    public void toBrain(int weight)
+    {
+        pieceHistory[0] = -1;
+        pieceHistory[1] = -1;
+        pieceHistory[2] = -1;
+        for(int a=memoryHash.size()-1; a>=0; a--)
+            {
+                try{
+                    if(
+                    !(brain.get(memoryHash.get(a))[memoryPos.get(a)] + weight < minAiValue) &&
+                    !(brain.get(memoryHash.get(a))[memoryPos.get(a)] + weight > maxAiValue))
+                    {
+                        if(plays < 5 && weight < 0)
+                        {
+                            brain.get(memoryHash.get(a))[memoryPos.get(a)] += (weight*3);
+                        }
+                        else
+                        {
+                            brain.get(memoryHash.get(a))[memoryPos.get(a)] += weight;
+                        }
+                    }
+                    else if(brain.get(memoryHash.get(a))[memoryPos.get(a)] + weight < minAiValue)
+                    {
+                        brain.get(memoryHash.get(a))[memoryPos.get(a)] = minAiValue;
+                    }
+                    else if(brain.get(memoryHash.get(a))[memoryPos.get(a)] + weight > maxAiValue)
+                    {
+                        brain.get(memoryHash.get(a))[memoryPos.get(a)] = maxAiValue;
+                    }
+                    /*int[] t = brain.get(memoryHash.get(a));
+                    t[memoryPos.get(a)] += weight;
+                    brain.put(memoryHash.get(a),t);*/
+                }catch(Exception e)
+                {
+                    System.out.println("Error: " + e);
+                }
+            }
+            memoryHash.clear();
+            memoryPos.clear();
+            plays = 0;
+    }
+    public String getHash()
+    {
+        String tmp = "";
+        for(int r=0; r<myGrid.length; r++)
+        {
+            for(int c=0; c<myGrid[0].length; c++)
+            {
+                tmp += myGrid[r][c];
+            }
+        }
+        return tmp;
+    }
+    public static int random(int low, int high){
+        return (int)((Math.random()*(high-low+1))+low);
+    }
+    public boolean blankBoard()
+    {
+        for(int r=5; r>=0; r--)
+        {
+            for(int c=0; c<7; c++)
+            {
+                if(myGrid[r][c] == 'b')
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
